@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Steel Price Estimator</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 480px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.3rem; }
+  label { display: block; margin: 0.75rem 0 0.25rem; font-size: 0.9rem; color: #333; }
+  select, input { width: 100%; padding: 0.4rem; font-size: 1rem; box-sizing: border-box; }
+  .checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+  .checkbox-row input { width: auto; }
+  button { margin-top: 1.25rem; padding: 0.6rem 1.2rem; font-size: 1rem; cursor: pointer; }
+  #result { margin-top: 1.25rem; padding: 0.75rem; background: #f4f4f4; border-radius: 4px; min-height: 1.2rem; white-space: pre-wrap; }
+  #result.error { background: #fde8e8; color: #a33; }
+</style>
+</head>
+<body>
+  <h1>Steel Price Estimator</h1>
+
+  <label for="category">Category</label>
+  <select id="category"></select>
+
+  <label for="item">Item</label>
+  <select id="item"></select>
+
+  <label for="quantity">Quantity (pieces)</label>
+  <input id="quantity" type="number" min="1" step="1" value="1">
+
+  <label for="length">Length (ft)</label>
+  <input id="length" type="number" min="0.1" step="0.1" value="20">
+
+  <div class="checkbox-row">
+    <input id="domestic" type="checkbox">
+    <label for="domestic" style="margin:0">Domestic</label>
+  </div>
+
+  <button id="go">Get Price</button>
+  <div id="result"></div>
+
+<script>
+const API = '/api';
+const KEY = 'REPLACE_WITH_SHARED_SECRET';
+const headers = { 'X-API-Key': KEY, 'Content-Type': 'application/json' };
+
+const categorySelect = document.getElementById('category');
+const itemSelect = document.getElementById('item');
+const resultEl = document.getElementById('result');
+
+function showError(message) {
+  resultEl.textContent = message;
+  resultEl.classList.add('error');
+}
+
+function clearError() {
+  resultEl.classList.remove('error');
+}
+
+async function loadCategories() {
+  try {
+    const res = await fetch(`${API}/categories`, { headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { categories } = await res.json();
+    categorySelect.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    await loadItems();
+  } catch (err) {
+    showError(`Failed to load categories: ${err.message}`);
+  }
+}
+
+async function loadItems() {
+  try {
+    const category = categorySelect.value;
+    const res = await fetch(`${API}/items?category=${encodeURIComponent(category)}`, { headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { items } = await res.json();
+    itemSelect.innerHTML = items.map(it => `<option value="${it.index}">${it.label}</option>`).join('');
+  } catch (err) {
+    showError(`Failed to load items: ${err.message}`);
+  }
+}
+
+categorySelect.addEventListener('change', loadItems);
+
+document.getElementById('go').addEventListener('click', async () => {
+  clearError();
+  resultEl.textContent = 'Calculating...';
+
+  const body = {
+    category: categorySelect.value,
+    item_index: parseInt(itemSelect.value, 10),
+    quantity: parseInt(document.getElementById('quantity').value, 10),
+    length_ft: parseFloat(document.getElementById('length').value),
+    is_domestic: document.getElementById('domestic').checked,
+  };
+
+  try {
+    const res = await fetch(`${API}/predict`, { method: 'POST', headers, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    resultEl.textContent =
+      `$${data.price_per_lb}/lb  x  ${data.total_weight_lbs} lbs  =  $${data.line_total} total`;
+  } catch (err) {
+    showError(`Prediction failed: ${err.message}`);
+  }
+});
+
+loadCategories();
+</script>
+</body>
+</html>
