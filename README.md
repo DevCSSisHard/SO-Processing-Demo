@@ -1,7 +1,7 @@
 # Steel Price Estimator (demo)
 
 A small catalog-driven price estimator: pick a category, pick an item, enter
-quantity and length, get a predicted $/lb and line total.
+quantity and length, get a predicted $/lb and line total. 
 
 This is a **showcase repo**; the API here (`api.py`) mirrors the full
 service's routes, auth, and CORS setup, but runs on inline sample data with a
@@ -63,3 +63,6 @@ catalog and model logic are kept in a private repo.
 
   Checked against recent real purchases, the estimates landed within about 5% of the
   actual invoice total. The tool is meant for quick project estimates, not exact quotes.
+
+Disclaimer:
+Generative AI used to build Regex patterns and JSON catalog. Removed existing outliers and build a weighted half-life approach in the new version of the model. 
